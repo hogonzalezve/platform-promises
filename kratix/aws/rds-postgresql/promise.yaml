@@ -1,0 +1,22 @@
+# platform-config/kratix/promises/microservice-with-rds.yaml (simplificado)
+apiVersion: platform.kratix.io/v1alpha1
+kind: Promise
+metadata:
+  name: microservice-with-rds
+spec:
+  apiVersion: promises.platform.mycorp/v1alpha1
+  kind: MicroserviceWithRDS
+  workflow:
+    # contenedor que renderiza desde plantillas Helm/Kustomize y hace commits a los repos
+    image: ghcr.io/myorg/promise-msrds-deliver:latest
+    params:
+      - name: K8S_REPO_BASE
+        value: git@github.com:myorg
+      - name: CLAIMS_REPO
+        valueFrom: .spec.claimsRepo
+      - name: K8S_REPO
+        valueFrom: .spec.k8sRepo
+  destinations:
+    - name: platform
+      kind: WorkloadCluster
+      selector: { env: "platform" }
