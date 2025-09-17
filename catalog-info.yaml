@@ -1,0 +1,11 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: platform-promises
+  description: Repositorio de Promises (Kratix)
+  tags: [kratix, promises]
+spec:
+  type: platform-repo
+  lifecycle: production
+  owner: group:platform-team
+  system: platform
