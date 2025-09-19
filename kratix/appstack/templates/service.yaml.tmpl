@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .spec.appName }}
+  namespace: {{ .spec.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .spec.appName }}
+spec:
+  type: {{ default "ClusterIP" .spec.serviceType }}
+  selector:
+    app.kubernetes.io/name: {{ .spec.appName }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: {{ default 8080 .spec.port }}

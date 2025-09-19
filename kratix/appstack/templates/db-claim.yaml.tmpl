@@ -1,0 +1,17 @@
+apiVersion: {{ default "database.example.org/v1alpha1" .spec.database.claimApiVersion }}
+kind: {{ default "PostgreSQLInstance" .spec.database.claimKind }}
+metadata:
+  name: {{ .spec.database.claimName }}
+  namespace: {{ .spec.namespace }}
+spec:
+  compositionRef: {} # opcional si usas multiple compositions por labels/selectors
+  parameters:
+    # Los parámetros son libres; se pasan a tu Composition
+    # Ejemplos:
+    engine: {{ default "postgres" (index .spec.database.parameters "engine") | quote }}
+    version: {{ default "15" (index .spec.database.parameters "version") | quote }}
+    instanceSize: {{ default "db.t3.micro" (index .spec.database.parameters "instanceSize") | quote }}
+    storageGB: {{ default 20 (index .spec.database.parameters "storageGB") }}
+    dbName: {{ default (printf "%sdb" .spec.appName) (index .spec.database.parameters "dbName") | quote }}
+    username: {{ default "appuser" (index .spec.database.parameters "username") | quote }}
+    publiclyAccessible: {{ default false (index .spec.database.parameters "publiclyAccessible") }}

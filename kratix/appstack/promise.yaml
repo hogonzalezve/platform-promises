@@ -1,0 +1,131 @@
+apiVersion: platform.kratix.io/v1alpha1
+kind: Promise
+metadata:
+  name: appstack
+spec:
+  # Define el API que expondrá esta Promesa
+  api:
+    group: platform.nttdata.io
+    version: v1alpha1
+    kind: AppStack
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            required: [appName, namespace, image, port]
+            properties:
+              appName:
+                type: string
+              namespace:
+                type: string
+              image:
+                type: string
+              imagePullPolicy:
+                type: string
+                default: IfNotPresent
+              replicas:
+                type: integer
+                default: 2
+              port:
+                type: integer
+                default: 8080
+              env:
+                type: array
+                items:
+                  type: object
+                  properties: { name: {type: string}, value: {type: string} }
+              resources:
+                type: object
+                properties:
+                  requests: { type: object, additionalProperties: true }
+                  limits: { type: object, additionalProperties: true }
+              gateway:
+                type: object
+                properties:
+                  hostname: { type: string }       # p.ej. app.example.com
+                  gatewayName: { type: string }     # p.ej. shared-gw
+                  gatewayNamespace: { type: string }# ns del Gateway
+              serviceType:
+                type: string
+                default: ClusterIP
+              pvc:
+                type: object
+                properties:
+                  storageClassName: { type: string, default: gp3 }
+                  size: { type: string, default: 10Gi }
+                  mountPath: { type: string, default: /data }
+              database:
+                type: object
+                properties:
+                  enabled: { type: boolean, default: true }
+                  claimApiVersion: { type: string, default: database.example.org/v1alpha1 }
+                  claimKind: { type: string, default: PostgreSQLInstance }
+                  claimName: { type: string, default: db }
+                  parameters:
+                    type: object
+                    additionalProperties: true
+  # Workflow de entrega: renderiza plantillas y hace push a Git (GitOps)
+  workflows:
+    delivery:
+      # Puedes usar "stages" si tu versión los separa; aquí un único paso
+      containers:
+        - name: renderer
+          image: alpine:3.20
+          command: ["/bin/sh","/entrypoint.sh"]
+          env:
+            - name: GIT_URL
+              valueFrom:
+                secretKeyRef: { name: appstack-git, key: url }
+            - name: GIT_USERNAME
+              valueFrom:
+                secretKeyRef: { name: appstack-git, key: username }
+            - name: GIT_EMAIL
+              valueFrom:
+                secretKeyRef: { name: appstack-git, key: email }
+            - name: GIT_TOKEN
+              valueFrom:
+                secretKeyRef: { name: appstack-git, key: token }
+            - name: GIT_BRANCH
+              valueFrom:
+                secretKeyRef: { name: appstack-git, key: branch }
+          volumeMounts:
+            - name: templates
+              mountPath: /templates
+            - name: entrypoint
+              mountPath: /entrypoint.sh
+              subPath: entrypoint.sh
+      volumes:
+        - name: templates
+          configMap:
+            name: appstack-templates
+        - name: entrypoint
+          configMap:
+            name: appstack-worker
+  # Entregables (templates y script) empacados en ConfigMaps
+  resources:
+    - apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: appstack-templates
+      data:
+        namespace.yaml.tmpl: |
+{{- include "file:templates/namespace.yaml.tmpl" | nindent 10 }}
+        deployment.yaml.tmpl: |
+{{- include "file:templates/deployment.yaml.tmpl" | nindent 10 }}
+        service.yaml.tmpl: |
+{{- include "file:templates/service.yaml.tmpl" | nindent 10 }}
+        httproute.yaml.tmpl: |
+{{- include "file:templates/httproute.yaml.tmpl" | nindent 10 }}
+        pvc.yaml.tmpl: |
+{{- include "file:templates/pvc.yaml.tmpl" | nindent 10 }}
+        db-claim.yaml.tmpl: |
+{{- include "file:templates/db-claim.yaml.tmpl" | nindent 10 }}
+    - apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: appstack-worker
+      data:
+        entrypoint.sh: |
+{{- include "file:worker/entrypoint.sh" | nindent 10 }}

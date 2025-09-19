@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .spec.appName }}
+  namespace: {{ .spec.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .spec.appName }}
+spec:
+  replicas: {{ default 2 .spec.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .spec.appName }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .spec.appName }}
+    spec:
+      containers:
+        - name: {{ .spec.appName }}
+          image: {{ .spec.image }}
+          imagePullPolicy: {{ default "IfNotPresent" .spec.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ default 8080 .spec.port }}
+          {{- if .spec.env }}
+          env:
+          {{- range .spec.env }}
+            - name: {{ .name }}
+              value: "{{ .value }}"
+          {{- end }}
+          {{- end }}
+          {{- if .spec.resources }}
+          resources:
+            {{- if .spec.resources.requests }}
+            requests:
+              {{- range $k,$v := .spec.resources.requests }}
+              {{ $k }}: {{ $v }}
+              {{- end }}
+            {{- end }}
+            {{- if .spec.resources.limits }}
+            limits:
+              {{- range $k,$v := .spec.resources.limits }}
+              {{ $k }}: {{ $v }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+          {{- if .spec.pvc.mountPath }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ default "/data" .spec.pvc.mountPath }}
+          {{- end }}
+      {{- if .spec.pvc.size }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .spec.appName }}-data
+      {{- end }}
